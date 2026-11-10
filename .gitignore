@@ -9,3 +9,8 @@ data/*.db
 data/*.db-*
 data/baseline.json
 config.yaml
+node_modules/
+*.pyc
+.benchmarks/
+.env
+dist/
