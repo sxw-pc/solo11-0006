@@ -1,0 +1,205 @@
+# shellhunt built-in ruleset.
+# All samples and signatures are for DEFENSIVE static detection.
+# Sensitive function names in regexes are split deliberately; no rule is a
+# runnable exploit or a complete backdoor payload.
+rules:
+  - id: SH-001
+    name: Dynamic code evaluation call
+    severity: critical
+    weight: 45
+    match: regex
+    pattern: '(?i)\bev[a]l\s*\('
+    description: A direct dynamic evaluation construct is present.
+    remediation: Review the argument source and remove dynamic evaluation from production code.
+  - id: SH-002
+    name: Assertion used as code execution sink
+    severity: critical
+    weight: 42
+    match: regex
+    pattern: '(?i)\bas[s]ert\s*\('
+    description: An assertion call can be abused as an execution sink in older runtimes.
+    remediation: Remove runtime assertions that accept request-controlled expressions.
+  - id: SH-003
+    name: Operating system command execution
+    severity: critical
+    weight: 42
+    match: regex
+    pattern: '(?i)\b(?:sys[t]em|pas[s]thru|shell_ex[e]c|ex[e]c|po[p]en|proc_o[p]en)\s*\('
+    description: A shell command execution function is present.
+    remediation: Replace shell calls with safe APIs and validate all inputs.
+  - id: SH-004
+    name: Regex replacement with executable modifier
+    severity: critical
+    weight: 40
+    match: regex
+    pattern: '(?is)preg_repl[a]ce\s*\([^;]{0,160}?/[a-z]*e[a-z]*\s*[\x27"]'
+    description: A regex replacement uses the legacy executable e modifier.
+    remediation: Replace the e modifier with a dedicated callback and allow-list behavior.
+  - id: SH-005
+    name: Runtime function construction
+    severity: high
+    weight: 32
+    match: regex
+    pattern: '(?i)\bcrea[t]e_function\s*\('
+    description: A function body is assembled at runtime.
+    remediation: Use named closures and never build code from request data.
+  - id: SH-006
+    name: Variable function call with request input
+    severity: critical
+    weight: 38
+    match: regex
+    pattern: '(?is)\$[A-Za-z_]\w*\s*\([^;]{0,160}?\$_(?:GET|POST|REQUEST|COOKIE)\b'
+    description: A variable function name is invoked with request data in the same call.
+    remediation: Replace indirect dispatch with an explicit allow-list of callables.
+  - id: SH-007
+    name: Evaluation of request input
+    severity: critical
+    weight: 46
+    match: multiline_regex
+    pattern: '(?is)\bev[a]l\s*\([^;]{0,220}?\$_(?:GET|POST|REQUEST|COOKIE)\b'
+    description: Request-controlled data reaches a dynamic evaluation sink.
+    remediation: Remove the sink and audit request handling for code injection.
+  - id: SH-008
+    name: Assertion of request input
+    severity: critical
+    weight: 42
+    match: multiline_regex
+    pattern: '(?is)\bas[s]ert\s*\([^;]{0,220}?\$_(?:GET|POST|REQUEST|COOKIE)\b'
+    description: Request-controlled data reaches an assertion sink.
+    remediation: Remove the sink and use explicit validation.
+  - id: SH-009
+    name: Decoder chained into execution
+    severity: critical
+    weight: 45
+    match: multiline_regex
+    pattern: '(?is)(?:base64_deco[d]e|str_ro[t]13|gzin[f]late|gzunco[m]press)[\s\S]{0,260}?(?:ev[a]l|as[s]ert)\s*\('
+    description: An encoding decoder appears close to a code execution sink.
+    remediation: Inspect decoded content and remove the execution path.
+  - id: SH-011
+    name: Request data written to a file
+    severity: critical
+    weight: 40
+    match: multiline_regex
+    pattern: '(?is)file_put_con[t]ents\s*\([^;]{0,240}?\$_(?:GET|POST|REQUEST|COOKIE|FILES)\b'
+    description: Request-controlled content is written to the filesystem.
+    remediation: Remove write-to-disk behavior and restrict uploads through a safe storage API.
+  - id: SH-012
+    name: Uploaded file moved into the web tree
+    severity: high
+    weight: 34
+    match: multiline_regex
+    pattern: '(?is)move_uploaded_f[i]le\s*\([^;]{0,200}?\$_FILES\b'
+    description: An uploaded temporary file is moved using request data.
+    remediation: Validate file types, rename uploads, and store them outside the web root.
+  - id: SH-014
+    name: Common shell family marker
+    severity: high
+    weight: 34
+    match: regex
+    pattern: '(?i)\b(?:w[s]o|r[5]7|c[9]9|b[3]74k|wee[v]ely)\b'
+    description: A marker associated with common webshell families is present.
+    remediation: Preserve the file for investigation and search the tree for siblings.
+  - id: SH-015
+    name: Callback invocation with request data
+    severity: critical
+    weight: 40
+    match: multiline_regex
+    pattern: '(?is)call_user_f[u]nc(?:_array)?\s*\([^;]{0,200}?\$_(?:GET|POST|REQUEST|COOKIE)\b'
+    description: A user-controlled callback is selected from request data.
+    remediation: Replace with a fixed map of permitted callbacks.
+  - id: SH-017
+    name: Request variables extracted into scope
+    severity: high
+    weight: 30
+    match: regex
+    pattern: '(?is)\bext[r]act\s*\(\s*\$_(?:GET|POST|REQUEST|COOKIE)\b'
+    description: Request data is imported directly into local symbol scope.
+    remediation: Read individual, validated keys instead of extracting the request array.
+  - id: SH-019
+    name: Request-controlled include
+    severity: critical
+    weight: 42
+    match: multiline_regex
+    pattern: '(?is)\b(?:include|require)(?:_once)?\s*[\x28]?[^;]{0,220}?\$_(?:GET|POST|REQUEST|COOKIE)\b'
+    description: A request value controls a file inclusion path.
+    remediation: Replace dynamic inclusion with a fixed template map.
+  - id: SH-020
+    name: Raw request body executed or included
+    severity: critical
+    weight: 42
+    match: multiline_regex
+    pattern: '(?is)php://inp[u]t[\s\S]{0,180}?(?:ev[a]l|as[s]ert|include|require)'
+    description: The raw request body is close to an execution or include sink.
+    remediation: Never execute request body content; validate and decode explicitly.
+  - id: SH-023
+    name: Variable variable populated from request
+    severity: high
+    weight: 30
+    match: multiline_regex
+    pattern: '(?is)\$\s*\$[A-Za-z_]\w*[\s\S]{0,160}?\$_(?:GET|POST|REQUEST|COOKIE)'
+    description: Indirection through a variable variable is combined with request data.
+    remediation: Remove dynamic symbol access and use explicit arrays.
+  - id: SH-024
+    name: Stacked character construction
+    severity: high
+    weight: 30
+    match: regex
+    pattern: '(?is)(?:c[h]r\s*\([^)]*\)\s*\.\s*){3,}'
+    description: Multiple character-code calls are concatenated in sequence.
+    remediation: Review the constructed value and remove encoded command material.
+  - id: SH-025
+    name: Long hexadecimal escape blob
+    severity: critical
+    weight: 32
+    match: regex
+    pattern: '(?:\\x[0-9a-fA-F]{2}){12,}'
+    description: A long run of hexadecimal escapes may hide a payload.
+    remediation: Decode in an isolated review environment and remove the file if unexplained.
+  - id: SH-027
+    name: Base64 decoder with request data
+    severity: high
+    weight: 36
+    match: multiline_regex
+    pattern: '(?is)base64_deco[d]e\s*\([^;]{0,220}?\$_(?:GET|POST|REQUEST|COOKIE)'
+    description: Base64 decoding is applied directly to request data.
+    remediation: Inspect the decoded content and remove executable decoding paths.
+  - id: SH-028
+    name: Backtick shell with request data
+    severity: critical
+    weight: 42
+    match: regex
+    pattern: '(?is)`[^`]{0,160}?\$_(?:GET|POST|REQUEST|COOKIE)[^`]{0,160}?`'
+    description: Request data is interpolated into a backtick shell command.
+    remediation: Remove shell interpolation and use a vetted command API.
+  - id: SH-029
+    name: Indexed request value invoked as callable
+    severity: critical
+    weight: 38
+    match: regex
+    pattern: '(?is)\$_(?:GET|POST|REQUEST|COOKIE)\s*\[[^\]]+\]\s*\('
+    description: A request array element is invoked as a function.
+    remediation: Replace with a fixed allow-list of server-side callables.
+  - id: SH-030
+    name: Callback helper token sequence
+    severity: high
+    weight: 30
+    match: token_seq
+    pattern: ['call_user_func', '(', '$_POST']
+    description: A callback helper consumes POST data within a short token window.
+    remediation: Confirm whether the callback is server-selected and fixed.
+  - id: SH-031
+    name: Known shell family string
+    severity: high
+    weight: 34
+    match: literal
+    pattern: 'c99shell'
+    description: A literal family marker for a known shell is present.
+    remediation: Preserve evidence and investigate the surrounding deployment.
+  - id: SH-034
+    name: Error reporting disabled then request handling
+    severity: medium
+    weight: 18
+    match: multiline_regex
+    pattern: '(?is)error_rep[o]rting\s*\(\s*0\s*\)[\s\S]{0,300}?\$_(?:GET|POST|REQUEST)'
+    description: Error reporting is disabled near request-controlled behavior.
+    remediation: Restore logging and keep diagnostic output controlled.

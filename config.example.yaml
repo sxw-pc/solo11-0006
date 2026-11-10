@@ -1,0 +1,47 @@
+# shellhunt example configuration. Copy to config.yaml to customize.
+# All paths are resolved relative to this file (or the project root for defaults).
+server:
+  host: 127.0.0.1
+  port: 8000
+database:
+  path: data/shellhunt.db
+scan:
+  extensions: [.php, .phps, .phtml, .inc, .asp, .aspx, .jsp, .jspx]
+  max_file_size: 2097152
+  skip_binary: true
+security:
+  # Scan targets must resolve inside one of these roots.
+  allowed_roots:
+    - fixtures/site_demo
+    - fixtures/corpus
+  demo_target: fixtures/site_demo
+engine:
+  rules_dir: shellhunt/ruleset
+  known_bad: shellhunt/ruleset/known_bad.sha256
+  allowlist: shellhunt/ruleset/allowlist.sha256
+  baseline: data/baseline.json
+  # Optional trusted directories; each basename becomes a selectable ruleset.
+  custom_rules_dirs: []
+thresholds:
+  suspicious: 20
+  malicious: 60
+scoring:
+  per_rule_cap: 40
+  rule_total_cap: 70
+  feature_total_cap: 40
+  entropy_total_cap: 15
+  baseline_total_cap: 15
+  feature_weights:
+    direct_input: 22
+    dynamic_call: 18
+    dangerous_calls: 8
+    obfuscation: 10
+  entropy_weights:
+    suspicious_string: 2
+    suspicious_cap: 8
+    encoding_depth: 4
+    encoding_cap: 12
+    high_entropy: 3
+  baseline_weights:
+    new_file: 8
+    modified_file: 12

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}shellhunt · request rejected{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Request <em>rejected</em>.</h1>
+  <p>{{ message }}</p>
+</section>
+<div class="notice">
+  Scan targets must resolve to a directory inside one of the configured allow-listed roots.
+  Traversal segments (<span class="mono">..</span>) and escaping symlinks are refused.
+</div>
+<p><a class="btn" href="{{ url_for('index') }}">Back to dashboard</a></p>
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}shellhunt · job #{{ job.id }}{% endblock %}
+{% block content %}
+{% if job.status in ('pending', 'running') %}
+<meta http-equiv="refresh" content="2">
+{% endif %}
+<section class="hero" style="padding-bottom:12px">
+  <h1>Scan <em>#{{ job.id }}</em></h1>
+  <p class="mono">{{ job.target }}</p>
+</section>
+<div class="row" style="margin-bottom:16px">
+  <span class="badge {{ job.status }}">{{ job.status }}</span>
+  <span class="muted">ruleset: <span class="mono">{{ job.ruleset }}</span></span>
+  <span class="muted">thresholds: suspicious ≥ {{ job.thresholds.suspicious }}, malicious ≥ {{ job.thresholds.malicious }}</span>
+  {% if job.status == 'done' %}
+  <a class="btn secondary" href="{{ url_for('export_html', job_id=job.id) }}">HTML report</a>
+  <a class="btn secondary" href="{{ url_for('export_json', job_id=job.id) }}">JSON report</a>
+  {% endif %}
+</div>
+{% if job.status == 'failed' %}
+<div class="notice" style="border-left-color:var(--malicious)">
+  <strong>Scan failed.</strong> <span class="mono">{{ job.error }}</span>
+</div>
+{% endif %}
+{% if job.summary %}
+<div class="stats">
+  <div class="stat"><b>{{ job.summary.total_files }}</b><span>files scanned</span></div>
+  <div class="stat"><b class="verdict-malicious">{{ job.summary.by_verdict.malicious }}</b><span>malicious</span></div>
+  <div class="stat"><b class="verdict-suspicious">{{ job.summary.by_verdict.suspicious }}</b><span>suspicious</span></div>
+  <div class="stat"><b class="verdict-clean">{{ job.summary.by_verdict.clean }}</b><span>clean</span></div>
+  <div class="stat"><b>{{ job.summary.total_hits }}</b><span>rule hits</span></div>
+  <div class="stat"><b>{{ job.summary.hash_matches }}</b><span>hash matches</span></div>
+</div>
+{% if job.summary.top_risk %}
+<section class="card" style="margin-bottom:18px">
+  <h2>Top risk files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Score</th><th>Verdict</th></tr></thead>
+    <tbody>
+      {% for row in job.summary.top_risk[:8] %}
+      <tr>
+        <td class="mono">{{ row.path }}</td>
+        <td class="score">{{ row.score }}/100</td>
+        <td><span class="badge {{ row.verdict }}">{{ row.verdict }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% if job.summary.rule_ranking %}
+<section class="card">
+  <h2>Rule hit ranking</h2>
+  <table>
+    <thead><tr><th>Rule</th><th>Severity</th><th>Hits</th><th>Files</th></tr></thead>
+    <tbody>
+      {% for row in job.summary.rule_ranking[:12] %}
+      <tr>
+        <td><span class="mono">{{ row.rule_id }}</span> {{ row.rule_name }}</td>
+        <td>{{ row.severity }}</td>
+        <td>{{ row.count }}</td>
+        <td>{{ row.files }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endif %}
+{% if files %}
+<section class="card" style="margin-top:18px">
+  <h2>File results</h2>
+  <table>
+    <thead><tr><th>File</th><th>Score</th><th>Verdict</th><th>Evidence</th></tr></thead>
+    <tbody>
+      {% for file in files %}
+      <tr>
+        <td>
+          <span class="mono">{{ file.path }}</span>
+          {% if file.known_bad_label %}<div class="lines">hash: {{ file.known_bad_label }}</div>{% endif %}
+          {% if file.baseline_status %}<div class="lines">baseline: {{ file.baseline_status }}</div>{% endif %}
+        </td>
+        <td>
+          <span class="score">{{ file.score }}</span>/100
+          <div class="bar"><i style="width: {{ file.score }}%; background: var(--{{ 'malicious' if file.verdict == 'malicious' else ('suspicious' if file.verdict == 'suspicious' else 'clean') }})"></i></div>
+        </td>
+        <td><span class="badge {{ file.verdict }}">{{ file.verdict }}</span></td>
+        <td>
+          {% if file.hits %}
+          <details>
+            <summary>{{ file.hits|length }} rule hit(s)</summary>
+            {% for hit in file.hits %}
+            <div class="evidence">
+              <div><strong>{{ hit.rule_id }} · {{ hit.rule_name }}</strong>
+                <span class="badge {{ 'malicious' if hit.severity == 'critical' else 'suspicious' }}">{{ hit.severity }}</span>
+                <span class="lines">line {{ hit.line }} · +{{ hit.points }}</span></div>
+              <div class="mono">{{ hit.snippet|truncate(120, True, '...') }}</div>
+            </div>
+            {% endfor %}
+          </details>
+          {% else %}
+          <span class="muted">No rule hits</span>
+          {% endif %}
+          {% if file.signals %}
+          <details>
+            <summary>Score breakdown</summary>
+            {% for signal in file.signals %}
+            <div class="lines">+{{ signal.points }} · {{ signal.label }}
+              {% if signal.capped %}(capped){% endif %}
+              {% if signal.detail %}— {{ signal.detail }}{% endif %}
+            </div>
+            {% endfor %}
+          </details>
+          {% endif %}
+          {% if file.entropy and file.entropy.suspicious_count %}
+          <div class="lines">entropy {{ file.entropy.overall }} · {{ file.entropy.suspicious_count }} payload string(s)
+            · chain depth {{ file.entropy.encoding_depth }}</div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% elif job.status == 'done' %}
+<div class="empty">No source files matched the configured extension allow-list.</div>
+{% elif job.status in ('pending', 'running') %}
+<div class="empty">Scan is running in the background. This page refreshes automatically.</div>
+{% endif %}
+<div class="row" style="margin-top:18px">
+  <a href="{{ url_for('index') }}">← Dashboard</a>
+  <form method="post" action="{{ url_for('delete_job', job_id=job.id) }}"
+        onsubmit="return confirm('Delete this scan and all stored results?');">
+    <button class="btn danger" type="submit">Delete scan</button>
+  </form>
+</div>
+{% endblock %}

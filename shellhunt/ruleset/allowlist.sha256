@@ -1,0 +1,4 @@
+# shellhunt benign hash allowlist.
+# Add a reviewed file SHA-256 here to suppress all scoring for that exact file.
+# Format: <sha256>  <label>
+# This list ships empty; known-bad hash matches always take priority over it.

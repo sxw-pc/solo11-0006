@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}shellhunt{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <a class="brand" href="{{ url_for('index') }}">shell<span>hunt</span></a>
+      <nav>
+        <a href="{{ url_for('index') }}">Dashboard</a>
+        <a href="{{ url_for('healthz') }}">Health</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    <div class="wrap">
+      Offline static analysis only. Samples are synthetic, non-executable fixtures.
+      Static heuristics can miss or misclassify files; use the evidence as a starting point.
+    </div>
+  </footer>
+</body>
+</html>
